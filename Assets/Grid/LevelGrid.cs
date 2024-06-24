@@ -32,6 +32,10 @@ public class LevelGrid : MonoBehaviour
     [Header("Corridors")]
     [SerializeField]
     float roomLinkChance = .666667f;
+    [SerializeField]
+    int deadEndChances = 3;
+    [SerializeField]
+    float deadEndTurnChance = .2f;
 
 
     Dictionary<Vector3Int, Tile> tiles = new Dictionary<Vector3Int, Tile>();
@@ -55,6 +59,7 @@ public class LevelGrid : MonoBehaviour
         var rooms = CreateRooms();
         SetupRoomWallTiles(rooms);
         GenerateCorridors(rooms);
+        GenerateDeadEnds(rooms);
     }
 
     private void CreateFullWallFloor()
@@ -320,6 +325,69 @@ public class LevelGrid : MonoBehaviour
                 tiles[coordToSetCorridor].SetTileType(TileType.Corridor);
             }
         }
+    }
+
+    void GenerateDeadEnds(List<RoomData> rooms)
+    {
+        int deadEndAmount = Random.Range(deadEndChances, deadEndChances * 2);
+
+        for (int deadEndIndex = 0; deadEndIndex < deadEndAmount; deadEndIndex++)
+        {
+            RoomData startingRoom = rooms[Random.Range(0, rooms.Count)];
+
+            int dir = Random.Range(0, 4);
+
+            Vector3Int startingCoord = new Vector3Int();
+            Vector3Int direction = new Vector3Int();
+
+            switch (dir)
+            {
+                //top
+                case 0:
+                    direction = new Vector3Int(1,0);
+                    startingCoord = new Vector3Int(startingRoom.coordinates.x + startingRoom.size.x - 1, startingRoom.coordinates.y + Random.Range(0, startingRoom.size.y));
+                    break;
+                //bottom
+                case 1:
+                    direction = new Vector3Int(-1,0);
+                    startingCoord = new Vector3Int(startingRoom.coordinates.x, startingRoom.coordinates.y + Random.Range(0, startingRoom.size.y));
+                    break;
+                //left
+                case 2:
+                    direction = new Vector3Int(0,-1);
+                    startingCoord = new Vector3Int(startingRoom.coordinates.x + Random.Range(0, startingRoom.size.x), startingRoom.coordinates.y);
+                    break;
+                //right
+                case 3:
+                    direction = new Vector3Int(0,1);
+                    startingCoord = new Vector3Int(startingRoom.coordinates.x + Random.Range(0, startingRoom.size.x), startingRoom.coordinates.y + startingRoom.size.y - 1);
+                    break;
+            }
+
+            GenerateDeadEnd(startingCoord, direction);
+        }
+    }
+
+    void GenerateDeadEnd(Vector3Int startPosition, Vector3Int direction)
+    {
+        Tile targetTile = tiles[startPosition + direction];
+
+        do
+        {
+            targetTile.SetTileType(TileType.Corridor);
+            startPosition = targetTile.Coordinates;
+
+            if (Random.Range(0f, 1f) < deadEndTurnChance)
+            {
+                int buffer = direction.x;
+                direction.x = direction.y;
+                direction.y = buffer;
+
+                direction *= Random.Range(0f, 1f) < .5f ? 1 : -1;
+            }
+
+            targetTile = tiles[startPosition + direction];
+        } while (targetTile.Type == TileType.Wall);
     }
     #endregion
 
